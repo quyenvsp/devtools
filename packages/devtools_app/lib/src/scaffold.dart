@@ -405,7 +405,7 @@ class DevToolsScaffoldState extends State<DevToolsScaffold>
                           splitters: [
                             DebuggerConsole.buildHeader(),
                           ],
-                          initialFractions: const [0.8, 0.2],
+                          initialFractions: const [0.542, 0.458],
                         )
                       : content,
                   bottomNavigationBar: widget.embed ? null : _buildStatusLine(),
