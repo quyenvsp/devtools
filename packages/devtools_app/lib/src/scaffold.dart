@@ -401,7 +401,14 @@ class DevToolsScaffoldState extends State<DevToolsScaffold>
                             content,
                             Padding(
                               padding: DevToolsScaffold.horizontalPadding,
-                              child: const DebuggerConsole(),
+                              child: Split(
+                                axis: Axis.horizontal,
+                                initialFractions: const [1.0, 0.0],
+                                children: const [
+                                  OutlineDecoration(child: DebuggerConsole()),
+                                  SizedBox(),
+                                ],
+                              ),
                             ),
                           ],
                           splitters: [
