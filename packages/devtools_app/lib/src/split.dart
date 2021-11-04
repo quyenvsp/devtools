@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'globals.dart';
-import 'routing.dart';
 import 'utils.dart';
 
 /// A widget that takes a list of children, lays them out along [axis], and
@@ -29,10 +27,12 @@ class Split extends StatefulWidget {
     @required this.initialFractions,
     this.minSizes,
     this.splitters,
+    this.fractionsKey,
   })  : assert(axis != null),
         assert(children != null && children.length >= 2),
         assert(initialFractions != null && initialFractions.length >= 2),
         assert(children.length == initialFractions.length),
+        assert(fractionsKey == null || fractionsKey.isNotEmpty),
         super(key: key) {
     _verifyFractionsSumTo1(initialFractions);
     if (minSizes != null) {
@@ -71,6 +71,9 @@ class Split extends StatefulWidget {
   /// If this is null, a default splitter will be used to divide [children].
   final List<PreferredSizeWidget> splitters;
 
+  /// The key for save fractions to global application preferences
+  final String fractionsKey;
+
   /// The key passed to the divider between children[index] and
   /// children[index + 1].
   ///
@@ -91,33 +94,22 @@ class Split extends StatefulWidget {
 
 class _SplitState extends State<Split> {
   List<double> fractions;
-  Map<String, dynamic> fractionsStorage;
+  List<double> fractionsStorage;
 
   bool get isHorizontal => widget.axis == Axis.horizontal;
 
   @override
   void initState() {
     super.initState();
-    fractionsStorage = jsonDecode(preferences.splitFractions.value);
-    preferences.splitFractions.addListener(onChangeSplitFractions);
+    if (widget.fractionsKey != null)
+      fractionsStorage =
+          preferences.lookupSplitFractions(widget.fractionsKey).value;
     fractions = List.from(widget.initialFractions);
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: _buildLayout);
-  }
-
-  @override
-  void dispose() {
-    preferences.splitFractions.removeListener(onChangeSplitFractions);
-    super.dispose();
-  }
-
-  void onChangeSplitFractions() {
-    setState(() {
-      fractionsStorage = jsonDecode(preferences.splitFractions.value);
-    });
   }
 
   Widget _buildLayout(BuildContext context, BoxConstraints constraints) {
@@ -127,20 +119,8 @@ class _SplitState extends State<Split> {
 
     final availableSize = axisSize - _totalSplitterSize();
 
-    final routerDelegate = DevToolsRouterDelegate.of(context);
-    String childrenRuntimeType = '';
-    childrenRuntimeType +=
-        widget.children.map((e) => '_${e.runtimeType.toString()}').join();
-    final String fractionsStorageKey =
-        '${routerDelegate.currentConfiguration?.page}_hash${childrenRuntimeType.hashCode}';
-    final List<dynamic> fractionsStorageData = (fractionsStorage != null &&
-            fractionsStorage[fractionsStorageKey] != null)
-        ? fractionsStorage[fractionsStorageKey].cast<double>()
-        : null;
-
-    if (fractionsStorageData is List<double> &&
-        fractions.length == fractionsStorageData.length) {
-      fractions = List.from(fractionsStorageData);
+    if (fractions.length == fractionsStorage?.length) {
+      fractions = List.from(fractionsStorage);
       _verifyFractionsSumTo1(fractions);
     }
 
@@ -275,7 +255,7 @@ class _SplitState extends State<Split> {
         }
       });
       _verifyFractionsSumTo1(fractions);
-      fractionsStorage[fractionsStorageKey] = fractions;
+      fractionsStorage = fractions;
     }
 
     final children = <Widget>[];
@@ -298,10 +278,8 @@ class _SplitState extends State<Split> {
                   isHorizontal ? updateSpacing(details, i) : null,
               onVerticalDragUpdate: (details) =>
                   isHorizontal ? null : updateSpacing(details, i),
-              onHorizontalDragEnd: (detail) =>
-                  preferences.setSplitFractions(jsonEncode(fractionsStorage)),
-              onVerticalDragEnd: (detail) =>
-                  preferences.setSplitFractions(jsonEncode(fractionsStorage)),
+              onHorizontalDragEnd: (detail) => _saveSplitFractions(),
+              onVerticalDragEnd: (detail) => _saveSplitFractions(),
               // DartStartBehavior.down is needed to keep the mouse pointer stuck to
               // the drag bar. There still appears to be a few frame lag before the
               // drag action triggers which is't ideal but isn't a launch blocker.
@@ -318,6 +296,11 @@ class _SplitState extends State<Split> {
       children: children,
       crossAxisAlignment: CrossAxisAlignment.stretch,
     );
+  }
+
+  // Save split fractions helpers
+  void _saveSplitFractions() {
+    preferences.saveSplitFractions(widget.fractionsKey, fractionsStorage);
   }
 
   double _totalSplitterSize() {
