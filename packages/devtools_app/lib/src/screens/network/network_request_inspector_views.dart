@@ -138,9 +138,6 @@ class HttpRequestView extends StatelessWidget {
     return ValueListenableBuilder(
       valueListenable: data.requestUpdatedNotifier,
       builder: (context, __, ___) {
-        final theme = Theme.of(context);
-        final requestHeaders = data.requestHeaders;
-        final requestContentType = requestHeaders?['content-type'] ?? '';
         final isLoading = data.isFetchingFullData;
         if (isLoading) {
           return CenteredCircularProgressIndicator(
@@ -148,21 +145,10 @@ class HttpRequestView extends StatelessWidget {
           );
         }
 
-        final isJson = requestContentType is List
-            ? requestContentType.any((element) => element.contains('json'))
-            : requestContentType.contains('json');
-
-        Widget child;
-        child = isJson
-            ? JsonViewer(encodedJson: data.requestBody!)
-            : Text(
-                data.requestBody!,
-                style: theme.fixedFontStyle,
-              );
         return Padding(
           padding: const EdgeInsets.all(denseSpacing),
           child: SingleChildScrollView(
-            child: child,
+            child: FormattedJson(formattedString: data.requestBody),
           ),
         );
       },
@@ -226,15 +212,8 @@ class HttpResponseView extends StatelessWidget {
         }
         if (contentType != null && contentType.contains('image')) {
           child = ImageResponseView(data);
-        } else if (contentType != null &&
-            contentType.contains('json') &&
-            responseBody.isNotEmpty) {
-          child = JsonViewer(encodedJson: responseBody);
         } else {
-          child = Text(
-            responseBody,
-            style: theme.fixedFontStyle,
-          );
+          child = FormattedJson(formattedString: responseBody);
         }
         return Padding(
           padding: const EdgeInsets.all(denseSpacing),

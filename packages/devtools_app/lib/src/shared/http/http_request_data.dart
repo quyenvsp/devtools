@@ -11,6 +11,7 @@ import 'package:mime/mime.dart';
 import 'package:vm_service/vm_service.dart';
 
 import '../../screens/network/network_model.dart';
+import '../common_widgets.dart';
 import '../globals.dart';
 import '../primitives/utils.dart';
 import 'http.dart';
@@ -74,9 +75,33 @@ class DartIOHttpRequestData extends NetworkRequest {
       _updateCount.value++;
       final fullRequest = _request as HttpProfileRequest;
       _responseBody = utf8.decode(fullRequest.responseBody!);
+      _formatResponseBody();
       _requestBody = utf8.decode(fullRequest.requestBody!);
+      _formatRequestBody();
     } finally {
       isFetchingFullData = false;
+    }
+  }
+
+  void _formatResponseBody() {
+    if (_responseBody == null) return;
+    if (contentType != null && contentType!.contains('json')) {
+      _responseBody = FormattedJson.encoder.convert(
+        json.decode(_responseBody!),
+      );
+    }
+  }
+
+  void _formatRequestBody() {
+    if (_requestBody == null) return;
+    final requestContentType = requestHeaders?['content-type'] ?? '';
+    final isJson = requestContentType is List
+        ? requestContentType.any((element) => element.contains('json'))
+        : requestContentType.contains('json');
+    if (isJson) {
+      _requestBody = FormattedJson.encoder.convert(
+        json.decode(_requestBody!),
+      );
     }
   }
 
@@ -276,6 +301,7 @@ class DartIOHttpRequestData extends NetworkRequest {
       if (!_request.isResponseComplete) return null;
       if (_responseBody != null) return _responseBody;
       _responseBody = utf8.decode(fullRequest.responseBody!);
+      _formatResponseBody();
       return _responseBody;
     } on FormatException {
       return '<binary data>';
@@ -302,6 +328,7 @@ class DartIOHttpRequestData extends NetworkRequest {
       if (_requestBody != null) return _requestBody;
       if (fullRequest.requestBody == null) return null;
       _requestBody = utf8.decode(fullRequest.requestBody!);
+      _formatRequestBody();
       return _requestBody;
     } on FormatException {
       return '<binary data>';
